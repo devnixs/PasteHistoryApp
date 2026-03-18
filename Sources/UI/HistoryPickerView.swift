@@ -133,22 +133,7 @@ struct HistoryPickerView: View {
             ScrollView {
                 LazyVStack(spacing: 8) {
                     ForEach(filteredItems) { item in
-                        HistoryPickerRow(
-                            item: item,
-                            thumbnailImage: environment.thumbnailService.image(
-                                forRelativePath: item.previewImagePath,
-                                resolvedBy: environment.historyStore
-                            ),
-                            isSelected: item.id == selectedItemID
-                        )
-                        .id(item.id)
-                        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .onTapGesture {
-                            selectedItemID = item.id
-                        }
-                        .onTapGesture(count: 2) {
-                            confirmSelection(item)
-                        }
+                        rowView(for: item)
                     }
                 }
                 .padding(.vertical, 2)
@@ -168,6 +153,25 @@ struct HistoryPickerView: View {
                     proxy.scrollTo(selectedID, anchor: .center)
                 }
             }
+        }
+    }
+
+    private func rowView(for item: ClipboardHistoryItem) -> some View {
+        HistoryPickerRow(
+            item: item,
+            previewImage: previewImage(for: item),
+            fileIcon: fileIcon(for: item),
+            linkURL: linkURL(for: item),
+            linkPreviewService: environment.linkPreviewService,
+            isSelected: item.id == selectedItemID
+        )
+        .id(item.id)
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .onTapGesture {
+            selectedItemID = item.id
+        }
+        .onTapGesture(count: 2) {
+            confirmSelection(item)
         }
     }
 
@@ -214,6 +218,12 @@ struct HistoryPickerView: View {
                 Text(environment.permissionsService.accessibilityStatus.guidanceText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                Text(environment.permissionsService.troubleshootingText)
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(.tertiary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 10) {
                     if environment.permissionsService.accessibilityStatus == .notRequested {
@@ -313,42 +323,84 @@ struct HistoryPickerView: View {
                 .joined(separator: "\n")
         }
     }
+
+    private func previewImage(for item: ClipboardHistoryItem) -> NSImage? {
+        guard item.kind == .image else {
+            return nil
+        }
+
+        if let thumbnail = environment.thumbnailService.image(
+            forRelativePath: item.previewImagePath,
+            resolvedBy: environment.historyStore
+        ) {
+            return thumbnail
+        }
+
+        return environment.thumbnailService.image(
+            forRelativePath: item.payloadStoragePath,
+            resolvedBy: environment.historyStore
+        )
+    }
+
+    private func fileIcon(for item: ClipboardHistoryItem) -> NSImage? {
+        guard item.kind == .fileURL else {
+            return nil
+        }
+
+        guard
+            let payloadURL = environment.historyStore.fileURL(forRelativePath: item.payloadStoragePath),
+            let payloadData = try? Data(contentsOf: payloadURL),
+            let rawURLs = try? JSONDecoder().decode([String].self, from: payloadData),
+            let firstURLString = rawURLs.first,
+            let fileURL = URL(string: firstURLString),
+            fileURL.isFileURL
+        else {
+            return nil
+        }
+
+        let icon = NSWorkspace.shared.icon(forFile: fileURL.path)
+        icon.size = NSSize(width: 54, height: 54)
+        return icon
+    }
+
+    private func linkURL(for item: ClipboardHistoryItem) -> URL? {
+        switch item.kind {
+        case .text, .richText:
+            return detectedLink(in: item.searchText ?? item.textPreview ?? item.title)
+        default:
+            return nil
+        }
+    }
+
+    private func detectedLink(in text: String) -> URL? {
+        let range = NSRange(location: 0, length: text.utf16.count)
+        guard
+            let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue),
+            let match = detector.firstMatch(in: text, options: [], range: range)
+        else {
+            return nil
+        }
+
+        return match.url
+    }
 }
 
 private struct HistoryPickerRow: View {
     let item: ClipboardHistoryItem
-    let thumbnailImage: NSImage?
+    let previewImage: NSImage?
+    let fileIcon: NSImage?
+    let linkURL: URL?
+    let linkPreviewService: LinkPreviewService
     let isSelected: Bool
+
+    @State private var faviconImage: NSImage?
 
     var body: some View {
         HStack(spacing: 12) {
             thumbnail
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(item.title)
-                    .font(.headline)
-                    .lineLimit(2)
-
-                if let subtitle = item.subtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                if let source = item.sourceAppBundleIdentifier {
-                    Text("From \(source)")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-            }
-
+            textBlock
             Spacer(minLength: 0)
-
-            Text(item.createdAt.formatted(date: .omitted, time: .shortened))
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+            timestamp
         }
         .padding(12)
         .background(background)
@@ -360,14 +412,50 @@ private struct HistoryPickerRow: View {
         .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(isSelected ? "Selected" : "")
         .accessibilityHint("Double-click or press Return to paste this item.")
+        .task(id: linkURL) {
+            guard let linkURL else {
+                faviconImage = nil
+                return
+            }
+
+            faviconImage = await linkPreviewService.favicon(for: linkURL)
+        }
+    }
+
+    private var textBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(item.title)
+                .font(.headline)
+                .lineLimit(2)
+
+            if let subtitle = item.subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            if let source = item.sourceAppBundleIdentifier {
+                Text("From \(source)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private var timestamp: some View {
+        Text(item.createdAt.formatted(date: .omitted, time: .shortened))
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
     }
 
     @ViewBuilder
     private var thumbnail: some View {
         switch item.kind {
         case .image:
-            if let thumbnailImage {
-                Image(nsImage: thumbnailImage)
+            if let previewImage {
+                Image(nsImage: previewImage)
                     .resizable()
                     .scaledToFill()
                     .frame(width: 54, height: 54)
@@ -376,14 +464,41 @@ private struct HistoryPickerRow: View {
                 fallbackThumbnail(systemImage: "photo")
             }
         case .text:
-            fallbackThumbnail(systemImage: "text.alignleft")
+            if let faviconImage {
+                faviconThumbnail(faviconImage)
+            } else {
+                fallbackThumbnail(systemImage: "text.alignleft")
+            }
         case .richText:
-            fallbackThumbnail(systemImage: "doc.richtext")
+            if let faviconImage {
+                faviconThumbnail(faviconImage)
+            } else {
+                fallbackThumbnail(systemImage: "doc.richtext")
+            }
         case .fileURL:
-            fallbackThumbnail(systemImage: "folder")
+            if let fileIcon {
+                Image(nsImage: fileIcon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 54, height: 54)
+            } else {
+                fallbackThumbnail(systemImage: "folder")
+            }
         default:
             fallbackThumbnail(systemImage: "doc")
         }
+    }
+
+    private func faviconThumbnail(_ image: NSImage) -> some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(Color(nsColor: .controlBackgroundColor))
+            .frame(width: 54, height: 54)
+            .overlay {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
+            }
     }
 
     private func fallbackThumbnail(systemImage: String) -> some View {

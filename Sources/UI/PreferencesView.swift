@@ -120,6 +120,11 @@ struct PreferencesView: View {
                 Text(environment.permissionsService.accessibilityStatus.guidanceText)
                     .foregroundStyle(.secondary)
 
+                Text(environment.permissionsService.troubleshootingText)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+
                 HStack {
                     if environment.permissionsService.accessibilityStatus == .notRequested {
                         Button("Request Access") {

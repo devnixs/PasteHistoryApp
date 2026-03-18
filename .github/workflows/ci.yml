@@ -7,6 +7,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build (${{ matrix.arch }})
@@ -17,7 +20,7 @@ jobs:
         include:
           - arch: arm64
             runner: macos-26
-          - arch: x64
+          - arch: intel
             runner: macos-26-intel
 
     steps:
@@ -52,3 +55,60 @@ jobs:
           name: PasteHistoryApp-zip-${{ matrix.arch }}
           path: dist/PasteHistoryApp-macOS-${{ matrix.arch }}.zip
           if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download ARM zip
+        uses: actions/download-artifact@v4
+        with:
+          name: PasteHistoryApp-zip-arm64
+          path: release-assets/arm64
+
+      - name: Download Intel zip
+        uses: actions/download-artifact@v4
+        with:
+          name: PasteHistoryApp-zip-intel
+          path: release-assets/intel
+
+      - name: Prepare release metadata
+        run: |
+          echo "TAG_NAME=build-${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "RELEASE_NAME=Build ${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "RELEASE_NOTES_PATH=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_ENV"
+
+      - name: Write release notes
+        run: |
+          cat <<EOF > "$RELEASE_NOTES_PATH"
+          Automated build for commit ${GITHUB_SHA}
+
+          Included assets:
+          - PasteHistoryApp-macOS-arm64.zip
+          - PasteHistoryApp-macOS-intel.zip
+          EOF
+
+      - name: Create or update GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          ARM_ZIP="$(find release-assets/arm64 -name '*.zip' -print -quit)"
+          INTEL_ZIP="$(find release-assets/intel -name '*.zip' -print -quit)"
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release edit "$TAG_NAME" \
+              --title "$RELEASE_NAME" \
+              --notes-file "$RELEASE_NOTES_PATH"
+            gh release upload "$TAG_NAME" "$ARM_ZIP" "$INTEL_ZIP" --clobber
+          else
+            gh release create "$TAG_NAME" \
+              "$ARM_ZIP" \
+              "$INTEL_ZIP" \
+              --title "$RELEASE_NAME" \
+              --notes-file "$RELEASE_NOTES_PATH"
+          fi

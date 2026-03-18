@@ -13,12 +13,14 @@ final class AppEnvironment: ObservableObject {
     let pickerCoordinator: PickerCoordinator
     let pasteService: PasteService
     let thumbnailService: ThumbnailService
+    let linkPreviewService: LinkPreviewService
     let permissionsService: PermissionsService
     let settingsStore: SettingsStore
 
     init() {
         let settingsStore = SettingsStore()
         let thumbnailService = ThumbnailService()
+        let linkPreviewService = LinkPreviewService()
         let historyStore = HistoryStore(settingsStore: settingsStore, thumbnailService: thumbnailService)
         let clipboardNormalizer = ClipboardNormalizer()
         let permissionsService = PermissionsService()
@@ -42,6 +44,7 @@ final class AppEnvironment: ObservableObject {
         self.pickerCoordinator = pickerCoordinator
         self.pasteService = pasteService
         self.thumbnailService = thumbnailService
+        self.linkPreviewService = linkPreviewService
         self.clipboardMonitor = clipboardMonitor
         self.hotkeyManager = hotkeyManager
 
