@@ -25,8 +25,7 @@ struct HistoryPickerView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
+        VStack(alignment: .leading, spacing: 12) {
             searchField
 
             if items.isEmpty {
@@ -50,8 +49,8 @@ struct HistoryPickerView: View {
                 permissionHint
             }
         }
-        .padding(20)
-        .frame(minWidth: 520, minHeight: 380)
+        .padding(16)
+        .frame(minWidth: 520, minHeight: 460)
         .focusable()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Clipboard history picker")
@@ -77,29 +76,6 @@ struct HistoryPickerView: View {
         .onMoveCommand(perform: handleMoveCommand)
         .onExitCommand {
             environment.pickerCoordinator.closeHistory()
-        }
-    }
-
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Clipboard History")
-                    .font(.title2.weight(.semibold))
-
-                if let bundleIdentifier = environment.pickerCoordinator.lastFocusedAppBundleIdentifier {
-                    Text("Target app: \(bundleIdentifier)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-
-            Button("Close") {
-                environment.pickerCoordinator.closeHistory()
-            }
-            .accessibilityLabel("Close clipboard history")
-            .accessibilityHint("Dismisses the picker and returns focus to the previous app.")
         }
     }
 
@@ -219,7 +195,11 @@ struct HistoryPickerView: View {
             .accessibilityHint("Restores the selected clipboard item and attempts to paste it.")
 
             Button("Preferences…") {
-                openSettings()
+                environment.pickerCoordinator.closeHistory(restoreFocus: false)
+                DispatchQueue.main.async {
+                    NSApp.activate(ignoringOtherApps: true)
+                    openSettings()
+                }
             }
             .accessibilityHint("Opens app settings and permissions.")
         }

@@ -12,6 +12,8 @@
     <string>com.raphael.pastehistoryapp</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleName</key>
     <string>PasteHistoryApp</string>
     <key>CFBundlePackageType</key>

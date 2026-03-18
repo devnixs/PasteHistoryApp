@@ -10,6 +10,7 @@ CONTENTS_DIR="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 PLIST_TEMPLATE="$ROOT_DIR/Packaging/Info.plist"
+ICON_FILE="$ROOT_DIR/Packaging/AppIcon.icns"
 ZIP_PATH="$DIST_DIR/$APP_NAME-macOS.zip"
 
 export HOME="$ROOT_DIR"
@@ -26,6 +27,10 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$PLIST_TEMPLATE" "$CONTENTS_DIR/Info.plist"
 cp "$BUILD_DIR/release/$APP_NAME" "$MACOS_DIR/$APP_NAME"
 chmod +x "$MACOS_DIR/$APP_NAME"
+
+if [[ -f "$ICON_FILE" ]]; then
+  cp "$ICON_FILE" "$RESOURCES_DIR/AppIcon.icns"
+fi
 
 if command -v codesign >/dev/null 2>&1; then
   codesign --force --deep --sign - "$APP_BUNDLE"
