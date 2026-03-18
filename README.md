@@ -1,3 +1,5 @@
+<img width="2058" height="1150" alt="CleanShot 2026-03-18 at 14 52 47@2x" src="https://github.com/user-attachments/assets/6cbf447d-0789-4274-a4ee-ab826e467c11" />
+
 # PasteHistoryApp
 
 `PasteHistoryApp` is a native macOS menu bar clipboard history utility built with Swift, SwiftUI, and AppKit.
