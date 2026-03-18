@@ -1,4 +1,4 @@
-<img width="2058" height="1150" alt="CleanShot 2026-03-18 at 14 52 47@2x" src="https://github.com/user-attachments/assets/6cbf447d-0789-4274-a4ee-ab826e467c11" />
+<img width="2258" height="1438" alt="CleanShot 2026-03-18 at 15 45 07@2x" src="https://github.com/user-attachments/assets/9346be2d-c77a-4172-bdbf-b5344f649db6" />
 
 # PasteHistoryApp
 
