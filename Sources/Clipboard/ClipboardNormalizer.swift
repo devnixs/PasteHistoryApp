@@ -14,6 +14,10 @@ struct ClipboardNormalizer {
         let utiTypes = pasteboard.pasteboardItems?
             .flatMap { $0.types.map(\.rawValue) } ?? pasteboard.types?.map(\.rawValue) ?? []
 
+        if let item = normalizeImage(from: pasteboard, utiTypes: utiTypes, sourceAppBundleIdentifier: sourceAppBundleIdentifier) {
+            return item
+        }
+
         if let item = normalizeFileURLs(from: pasteboard, utiTypes: utiTypes, sourceAppBundleIdentifier: sourceAppBundleIdentifier) {
             return item
         }
@@ -23,10 +27,6 @@ struct ClipboardNormalizer {
         }
 
         if let item = normalizeText(from: pasteboard, utiTypes: utiTypes, sourceAppBundleIdentifier: sourceAppBundleIdentifier) {
-            return item
-        }
-
-        if let item = normalizeImage(from: pasteboard, utiTypes: utiTypes, sourceAppBundleIdentifier: sourceAppBundleIdentifier) {
             return item
         }
 

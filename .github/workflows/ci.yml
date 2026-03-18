@@ -63,6 +63,9 @@ jobs:
     needs: build
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download ARM zip
         uses: actions/download-artifact@v4
         with:
@@ -93,6 +96,7 @@ jobs:
 
       - name: Create or update GitHub release
         env:
+          GH_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
